@@ -1,32 +1,24 @@
 import {
-  int,
-  mysqlEnum,
-  mysqlTable,
+  integer,
+  sqliteTable,
   text,
-  timestamp,
-  varchar,
-  json,
-  decimal,
-  boolean,
-  datetime,
   uniqueIndex,
   index,
-  foreignKey,
-} from "drizzle-orm/mysql-core";
+} from "drizzle-orm/sqlite-core";
 
 /**
  * Core user table backing auth flow.
  */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+export const users = sqliteTable("users", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  openId: text("openId").notNull().unique(),
   name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  email: text("email"),
+  loginMethod: text("loginMethod"),
+  role: text("role").default("user").notNull(), // SQLite doesn't have Enums, using text
+  createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
+  lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).defaultNow().notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -35,16 +27,16 @@ export type InsertUser = typeof users.$inferInsert;
 /**
  * Instructors/Teachers
  */
-export const instructors = mysqlTable(
+export const instructors = sqliteTable(
   "instructors",
   {
-    id: int("id").autoincrement().primaryKey(),
-    name: varchar("name", { length: 255 }).notNull(),
-    email: varchar("email", { length: 320 }).notNull(),
-    department: varchar("department", { length: 255 }),
-    maxHoursPerWeek: int("maxHoursPerWeek").default(20),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    department: text("department"),
+    maxHoursPerWeek: integer("maxHoursPerWeek").default(20),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     emailIdx: index("instructors_email_idx").on(table.email),
@@ -57,19 +49,19 @@ export type InsertInstructor = typeof instructors.$inferInsert;
 /**
  * Courses
  */
-export const courses = mysqlTable(
+export const courses = sqliteTable(
   "courses",
   {
-    id: int("id").autoincrement().primaryKey(),
-    code: varchar("code", { length: 50 }).notNull().unique(),
-    name: varchar("name", { length: 255 }).notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
     description: text("description"),
-    instructorId: int("instructorId").notNull(),
-    slotsPerWeek: int("slotsPerWeek").notNull(), // Number of sessions per week
-    durationMinutes: int("durationMinutes").default(60), // Duration of each session
-    studentCount: int("studentCount").default(30),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    instructorId: integer("instructorId").notNull(),
+    slotsPerWeek: integer("slotsPerWeek").notNull(), // Number of sessions per week
+    durationMinutes: integer("durationMinutes").default(60), // Duration of each session
+    studentCount: integer("studentCount").default(30),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     instructorIdIdx: index("courses_instructorId_idx").on(table.instructorId),
@@ -83,20 +75,20 @@ export type InsertCourse = typeof courses.$inferInsert;
 /**
  * Rooms/Classrooms
  */
-export const rooms = mysqlTable(
+export const rooms = sqliteTable(
   "rooms",
   {
-    id: int("id").autoincrement().primaryKey(),
-    code: varchar("code", { length: 50 }).notNull().unique(),
-    name: varchar("name", { length: 255 }).notNull(),
-    building: varchar("building", { length: 255 }),
-    floor: int("floor"),
-    capacity: int("capacity").notNull(),
-    hasProjector: boolean("hasProjector").default(false),
-    hasWhiteboard: boolean("hasWhiteboard").default(false),
-    hasComputers: boolean("hasComputers").default(false),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    building: text("building"),
+    floor: integer("floor"),
+    capacity: integer("capacity").notNull(),
+    hasProjector: integer("hasProjector", { mode: "boolean" }).default(0), // SQLite uses integer for boolean
+    hasWhiteboard: integer("hasWhiteboard", { mode: "boolean" }).default(0),
+    hasComputers: integer("hasComputers", { mode: "boolean" }).default(0),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     codeIdx: index("rooms_code_idx").on(table.code),
@@ -109,15 +101,15 @@ export type InsertRoom = typeof rooms.$inferInsert;
 /**
  * Time Slots (days and times available for scheduling)
  */
-export const timeSlots = mysqlTable(
+export const timeSlots = sqliteTable(
   "timeSlots",
   {
-    id: int("id").autoincrement().primaryKey(),
-    dayOfWeek: int("dayOfWeek").notNull(), // 0-6 (Monday-Sunday)
-    startTime: varchar("startTime", { length: 5 }).notNull(), // HH:MM format
-    endTime: varchar("endTime", { length: 5 }).notNull(), // HH:MM format
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    dayOfWeek: integer("dayOfWeek").notNull(), // 0-6 (Monday-Sunday)
+    startTime: text("startTime").notNull(), // HH:MM format
+    endTime: text("endTime").notNull(), // HH:MM format
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     dayTimeIdx: uniqueIndex("timeSlots_day_time_idx").on(
@@ -133,24 +125,18 @@ export type InsertTimeSlot = typeof timeSlots.$inferInsert;
 /**
  * Hard Constraints (must be satisfied)
  */
-export const hardConstraints = mysqlTable(
+export const hardConstraints = sqliteTable(
   "hardConstraints",
   {
-    id: int("id").autoincrement().primaryKey(),
-    type: mysqlEnum("type", [
-      "room_capacity",
-      "instructor_availability",
-      "no_instructor_overlap",
-      "no_room_overlap",
-      "course_slots",
-    ]).notNull(),
-    courseId: int("courseId"),
-    instructorId: int("instructorId"),
-    roomId: int("roomId"),
-    timeSlotId: int("timeSlotId"),
-    metadata: json("metadata"), // Additional constraint data
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    type: text("type").notNull(), // "room_capacity", "instructor_availability", etc.
+    courseId: integer("courseId"),
+    instructorId: integer("instructorId"),
+    roomId: integer("roomId"),
+    timeSlotId: integer("timeSlotId"),
+    metadata: text("metadata", { mode: "json" }), // Additional constraint data
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     courseIdIdx: index("hardConstraints_courseId_idx").on(table.courseId),
@@ -166,25 +152,19 @@ export type InsertHardConstraint = typeof hardConstraints.$inferInsert;
 /**
  * Soft Constraints (preferences, should be satisfied if possible)
  */
-export const softConstraints = mysqlTable(
+export const softConstraints = sqliteTable(
   "softConstraints",
   {
-    id: int("id").autoincrement().primaryKey(),
-    type: mysqlEnum("type", [
-      "instructor_preference",
-      "room_preference",
-      "time_preference",
-      "balanced_schedule",
-      "no_gaps",
-    ]).notNull(),
-    courseId: int("courseId"),
-    instructorId: int("instructorId"),
-    roomId: int("roomId"),
-    timeSlotId: int("timeSlotId"),
-    weight: decimal("weight", { precision: 3, scale: 2 }).default("1.00"), // Importance weight
-    metadata: json("metadata"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    type: text("type").notNull(),
+    courseId: integer("courseId"),
+    instructorId: integer("instructorId"),
+    roomId: integer("roomId"),
+    timeSlotId: integer("timeSlotId"),
+    weight: text("weight").default("1.00"), // Store as text or real for SQLite
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     courseIdIdx: index("softConstraints_courseId_idx").on(table.courseId),
@@ -200,26 +180,19 @@ export type InsertSoftConstraint = typeof softConstraints.$inferInsert;
 /**
  * Timetables (generated schedules)
  */
-export const timetables = mysqlTable(
+export const timetables = sqliteTable(
   "timetables",
   {
-    id: int("id").autoincrement().primaryKey(),
-    name: varchar("name", { length: 255 }).notNull(),
-    type: mysqlEnum("type", ["generated", "optimized", "manual"]).default(
-      "generated"
-    ),
-    status: mysqlEnum("status", [
-      "draft",
-      "active",
-      "archived",
-      "deprecated",
-    ]).default("draft"),
-    schedule: json("schedule").notNull(), // Nested structure: day → time → [course, instructor, room]
-    score: decimal("score", { precision: 5, scale: 2 }).default("0.00"),
-    conflictCount: int("conflictCount").default(0),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-    createdBy: int("createdBy"),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    name: text("name").notNull(),
+    type: text("type").default("generated"), // "generated", "optimized", "manual"
+    status: text("status").default("draft"), // "draft", "active", "archived", "deprecated"
+    schedule: text("schedule", { mode: "json" }).notNull(), // Nested structure
+    score: text("score").default("0.00"),
+    conflictCount: integer("conflictCount").default(0),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
+    createdBy: integer("createdBy"),
   },
   (table) => ({
     statusIdx: index("timetables_status_idx").on(table.status),
@@ -233,17 +206,17 @@ export type InsertTimetable = typeof timetables.$inferInsert;
 /**
  * Timetable Versions (history tracking)
  */
-export const timetableVersions = mysqlTable(
+export const timetableVersions = sqliteTable(
   "timetableVersions",
   {
-    id: int("id").autoincrement().primaryKey(),
-    timetableId: int("timetableId").notNull(),
-    versionNumber: int("versionNumber").notNull(),
-    schedule: json("schedule").notNull(),
-    score: decimal("score", { precision: 5, scale: 2 }),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    timetableId: integer("timetableId").notNull(),
+    versionNumber: integer("versionNumber").notNull(),
+    schedule: text("schedule", { mode: "json" }).notNull(),
+    score: text("score"),
     changeDescription: text("changeDescription"),
-    changedBy: int("changedBy"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    changedBy: integer("changedBy"),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     timetableIdIdx: index("timetableVersions_timetableId_idx").on(
@@ -258,28 +231,22 @@ export type InsertTimetableVersion = typeof timetableVersions.$inferInsert;
 /**
  * Conflicts (detected scheduling conflicts)
  */
-export const conflicts = mysqlTable(
+export const conflicts = sqliteTable(
   "conflicts",
   {
-    id: int("id").autoincrement().primaryKey(),
-    timetableId: int("timetableId").notNull(),
-    type: mysqlEnum("type", [
-      "instructor_overlap",
-      "room_overlap",
-      "capacity_exceeded",
-      "constraint_violation",
-      "time_unavailable",
-    ]).notNull(),
-    courseId: int("courseId"),
-    instructorId: int("instructorId"),
-    roomId: int("roomId"),
-    timeSlotId: int("timeSlotId"),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    timetableId: integer("timetableId").notNull(),
+    type: text("type").notNull(),
+    courseId: integer("courseId"),
+    instructorId: integer("instructorId"),
+    roomId: integer("roomId"),
+    timeSlotId: integer("timeSlotId"),
     description: text("description"),
-    severity: mysqlEnum("severity", ["low", "medium", "high"]).default("medium"),
-    resolved: boolean("resolved").default(false),
+    severity: text("severity").default("medium"),
+    resolved: integer("resolved", { mode: "boolean" }).default(0),
     resolution: text("resolution"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     timetableIdIdx: index("conflicts_timetableId_idx").on(table.timetableId),
@@ -293,29 +260,20 @@ export type InsertConflict = typeof conflicts.$inferInsert;
 /**
  * Email Notifications (audit trail for sent emails)
  */
-export const emailNotifications = mysqlTable(
+export const emailNotifications = sqliteTable(
   "emailNotifications",
   {
-    id: int("id").autoincrement().primaryKey(),
-    recipientEmail: varchar("recipientEmail", { length: 320 }).notNull(),
-    recipientType: mysqlEnum("recipientType", [
-      "instructor",
-      "admin",
-      "student",
-    ]).default("instructor"),
-    subject: varchar("subject", { length: 255 }).notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    recipientEmail: text("recipientEmail").notNull(),
+    recipientType: text("recipientType").default("instructor"),
+    subject: text("subject").notNull(),
     body: text("body"),
-    type: mysqlEnum("type", [
-      "schedule_generated",
-      "conflict_detected",
-      "schedule_changed",
-      "optimization_complete",
-    ]).notNull(),
-    timetableId: int("timetableId"),
-    status: mysqlEnum("status", ["pending", "sent", "failed"]).default("pending"),
-    sentAt: timestamp("sentAt"),
+    type: text("type").notNull(),
+    timetableId: integer("timetableId"),
+    status: text("status").default("pending"),
+    sentAt: integer("sentAt", { mode: "timestamp" }),
     failureReason: text("failureReason"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     statusIdx: index("emailNotifications_status_idx").on(table.status),
@@ -331,17 +289,17 @@ export type InsertEmailNotification = typeof emailNotifications.$inferInsert;
 /**
  * Audit Trail (comprehensive logging)
  */
-export const auditTrail = mysqlTable(
+export const auditTrail = sqliteTable(
   "auditTrail",
   {
-    id: int("id").autoincrement().primaryKey(),
-    action: varchar("action", { length: 255 }).notNull(),
-    entityType: varchar("entityType", { length: 100 }).notNull(),
-    entityId: int("entityId"),
-    userId: int("userId"),
-    changes: json("changes"), // Before/after values
-    ipAddress: varchar("ipAddress", { length: 45 }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    action: text("action").notNull(),
+    entityType: text("entityType").notNull(),
+    entityId: integer("entityId"),
+    userId: integer("userId"),
+    changes: text("changes", { mode: "json" }), // Before/after values
+    ipAddress: text("ipAddress"),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     entityTypeIdx: index("auditTrail_entityType_idx").on(table.entityType),
@@ -355,16 +313,16 @@ export type InsertAuditTrail = typeof auditTrail.$inferInsert;
 /**
  * Instructor Availability (when instructors are available/unavailable)
  */
-export const instructorAvailability = mysqlTable(
+export const instructorAvailability = sqliteTable(
   "instructorAvailability",
   {
-    id: int("id").autoincrement().primaryKey(),
-    instructorId: int("instructorId").notNull(),
-    timeSlotId: int("timeSlotId").notNull(),
-    available: boolean("available").default(true),
-    reason: varchar("reason", { length: 255 }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    instructorId: integer("instructorId").notNull(),
+    timeSlotId: integer("timeSlotId").notNull(),
+    available: integer("available", { mode: "boolean" }).default(1),
+    reason: text("reason"),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     instructorIdIdx: index("instructorAvailability_instructorId_idx").on(
@@ -383,16 +341,16 @@ export type InsertInstructorAvailability =
 /**
  * Room Availability (when rooms are available/unavailable)
  */
-export const roomAvailability = mysqlTable(
+export const roomAvailability = sqliteTable(
   "roomAvailability",
   {
-    id: int("id").autoincrement().primaryKey(),
-    roomId: int("roomId").notNull(),
-    timeSlotId: int("timeSlotId").notNull(),
-    available: boolean("available").default(true),
-    reason: varchar("reason", { length: 255 }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    roomId: integer("roomId").notNull(),
+    timeSlotId: integer("timeSlotId").notNull(),
+    available: integer("available", { mode: "boolean" }).default(1),
+    reason: text("reason"),
+    createdAt: integer("createdAt", { mode: "timestamp" }).defaultNow().notNull(),
+    updatedAt: integer("updatedAt", { mode: "timestamp" }).defaultNow().notNull(),
   },
   (table) => ({
     roomIdIdx: index("roomAvailability_roomId_idx").on(table.roomId),

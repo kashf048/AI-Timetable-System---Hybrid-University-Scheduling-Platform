@@ -1,4 +1,5 @@
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
 import {
   instructors,
   courses,
@@ -8,7 +9,16 @@ import {
   softConstraints,
 } from "../drizzle/schema.js";
 
-const db = drizzle(process.env.DATABASE_URL);
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required to run seeding");
+}
+
+const client = createClient({
+  url: process.env.DATABASE_URL.startsWith("file:")
+    ? process.env.DATABASE_URL
+    : `file:${process.env.DATABASE_URL}`,
+});
+const db = drizzle(client);
 
 async function seed() {
   console.log("🌱 Starting database seed...");
@@ -107,7 +117,7 @@ async function seed() {
     ];
 
     for (const constraint of hardConstraintData) {
-      await db.insert(hardConstraints).values(constraint as any);
+      await db.insert(hardConstraints).values(constraint);
     }
 
     // Seed soft constraints
@@ -121,7 +131,7 @@ async function seed() {
     ];
 
     for (const constraint of softConstraintData) {
-      await db.insert(softConstraints).values(constraint as any);
+      await db.insert(softConstraints).values(constraint);
     }
 
     console.log("✅ Database seeding completed successfully!");
